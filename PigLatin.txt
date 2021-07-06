@@ -1,0 +1,59 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
+public class PigLatin {
+
+	public static void main(String[] args) throws IOException {
+		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		System.out.println("Enter the string");
+		String words = br.readLine();
+		
+		System.out.print(doRemake(words));
+		
+	}
+	
+	private static String doRemake(String words){
+		String st[] = words.split(" ");
+		int i = 0;
+		words = "";
+		while(i < st.length) {
+			int startLetterIndex = 0;
+		
+			//Get the index of First letter or Digit excluding punctuation
+			while(!Character.isLetterOrDigit(st[i].charAt(startLetterIndex))){
+				startLetterIndex++;
+			}
+			int endLetterIndex =st[i].length()-1;
+			
+			//Get the index of last letter or Digit excluding punctuation
+			while(!Character.isLetterOrDigit(st[i].charAt(endLetterIndex))) {
+				endLetterIndex--;
+			}
+			
+			//if word starts with vowel, add 'way' at the end
+			if("AEIOUaeiou".contains(st[i].charAt(startLetterIndex)+"")) {
+				words += st[i].substring(0, startLetterIndex) +st[i].substring(startLetterIndex,endLetterIndex+1)+"way"+st[i].substring(endLetterIndex+1);
+				
+			} else {
+				char ch1 = checkandConvertCase(st[i].charAt(startLetterIndex), st[i].charAt(startLetterIndex+1));
+				char ch2 = checkandConvertCase(st[i].charAt(startLetterIndex+1), st[i].charAt(startLetterIndex));
+				
+				// convert word to piglatin 
+				words += st[i].substring(0, startLetterIndex) + ch2 + st[i].substring(startLetterIndex+2,endLetterIndex+1)+ ch1 +"ay"+st[i].substring(endLetterIndex+1);	
+			}
+			if(i != st.length-1)
+				words += " ";
+			i++;
+		}
+		
+		return words;
+	}
+
+	private static char checkandConvertCase(char ch1, char ch2) {
+		if(Character.isUpperCase(ch2)) 
+			return Character.toUpperCase(ch1);
+		return Character.toLowerCase(ch1);
+	}
+	
+}

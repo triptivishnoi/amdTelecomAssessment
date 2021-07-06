@@ -1,0 +1,146 @@
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class WeatherSMS {
+
+	public static void main(String[] args) throws IOException, InterruptedException {
+		//initiate sms service
+		callSmsApi();
+
+	}
+
+	public static void callSmsApi() throws IOException, InterruptedException {
+
+		String msgDraft = "Your name and Temperature %s than 20C. %.2f";
+		int count = 0;
+		while(true) {	
+
+			//get Temperature from weather api
+			double temp = getTemp();
+			if(temp != -1) {
+				//String to store message 
+				String message = null;
+				if(temp > 20) {
+					message = String.format(msgDraft, "more", temp);
+				} else {
+					message = String.format(msgDraft, "less", temp);
+				}
+				count++;
+
+				//getToken from outh Token Api
+				String token = getToken();
+
+				//send sms 
+				sendSms(token, message);
+				if(count == 10) {
+					break;
+				}
+				Thread.sleep(600000);
+			}
+		}
+	} 
+
+	private static double getTemp() throws IOException {
+		String apiId = "b385aa7d4e568152288b3c9f5c2458a5";
+		String city = "Thessaloniki";
+		String query = "https://api.openweathermap.org/data/2.5/weather?q="+city+"&appid="+apiId+"&units=metric";
+
+		//Setup Http Connection
+		URL url = new URL(query);
+		HttpURLConnection con = null;
+		try{
+			con = (HttpURLConnection) url.openConnection();
+			con.setRequestProperty("accept", "application/json");
+			con.setRequestMethod("GET");
+			InputStream responseStream = con.getInputStream();
+
+			// Manually converting the response body InputStream to Java Object using Jackson
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode root = mapper.readTree(responseStream);
+
+			// Get the value of temp from JsonNode
+			return root.get("main").get("temp").doubleValue();
+		} catch(Exception e) {
+			System.out.println("Exception occured");
+			e.printStackTrace();
+		}
+		finally {
+			if(con != null)
+				con.disconnect();
+		}
+		return -1;
+	}
+
+	private static String getToken() throws IOException {
+		//Setup HTTP connection
+		URL url = new URL("https://auth.routee.net/oauth/token");
+		HttpURLConnection con = (HttpURLConnection) url.openConnection();
+		con.setRequestProperty("content-type", "application/x-www-form-urlencoded");
+		con.setRequestProperty("authorization", "Basic NWM1ZDVlMjhlNGIwYmFlNWY0YWNjZmVjOk1Ha05mcUd1ZDA=");
+		String jsonInputString = "grant_type=client_credentials";
+		con.setDoOutput(true);
+		String access_token = null;
+
+		//Read request body and call the api to get response
+		try(OutputStream os = con.getOutputStream()) {
+			byte[] input = jsonInputString.getBytes("utf-8");
+			os.write(input, 0, input.length);
+			InputStream responseStream = con.getInputStream();
+
+			// Manually converting the response body InputStream to Java Object using Jackson
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode root = mapper.readTree(responseStream);
+
+			// Get the value of accessToken from JsonNode
+			access_token = root.get("access_token").textValue();
+		} catch(Exception e) {
+			e.printStackTrace();
+		} finally {
+			if(con != null)
+				con.disconnect();
+		}
+		return access_token;
+	}
+
+
+	private static void sendSms(String token, String msg) throws IOException{
+		//Setup HTTP connection
+		URL url = new URL("https://connect.routee.net/sms");
+		HttpURLConnection con = (HttpURLConnection) url.openConnection();
+		con.setRequestMethod("POST");
+		token = "Bearer "+token;
+		con.setRequestProperty("authorization", token);
+		con.setRequestProperty("content-type", "application/json");
+
+		//Set Body
+		String jsonInputString = "{ \"body\": \"" +msg+ "\",\"to\" : \"+30 6922222222\",\"from\": \"amdTelecom\"}";
+		con.setDoOutput(true);
+
+		//Read request body and call the api to get response
+		try(OutputStream os = con.getOutputStream()) {
+			byte[] input = jsonInputString.getBytes("utf-8");
+			os.write(input, 0, input.length);
+			InputStream responseStream = con.getInputStream();
+
+			// Manually converting the response body InputStream to Java Object using Jackson
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode root = mapper.readTree(responseStream);
+
+			System.out.println("Sms status :" + root.get("status")+"\nTracking id :" + root.get("trackingId") + "\nMessage :" +root.get("body"));
+		} catch(Exception e) {
+			e.printStackTrace();
+			System.out.println("Error occured while sending the message");
+		} finally {
+			if(con != null)
+				con.disconnect();
+		}
+	}
+}
+
+
